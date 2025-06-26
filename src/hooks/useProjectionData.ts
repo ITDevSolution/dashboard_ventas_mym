@@ -18,16 +18,19 @@ interface ProjectionData {
 const fetchProjectionData = async (
   params: ProjectionRequest
 ): Promise<ProjectionData> => {
-  const url = 'http://54.232.3.164/project-sales';
+  const url = new URL('https://2a0sw2gqmd.execute-api.sa-east-1.amazonaws.com/default/fnSalesAIECSLambda')
+
+  url.searchParams.append('company', params.company);
+  url.searchParams.append('seller_code', params.seller_code);
   
   console.log('Fetching projection data from:', url);
   
-  const response = await fetch(url,{
-    method: 'POST',
+  const response = await fetch(url.toString(),{
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json'
     },
-    body: JSON.stringify(params)
   });
 
   if (!response.ok) {
@@ -42,7 +45,7 @@ const fetchProjectionData = async (
 
 export const useProjectionData = (params: ProjectionRequest) => {
   return useQuery({
-    queryKey: ['projectionData', params],
+    queryKey: ['projectionData', params.company, params.seller_code],
     queryFn: () => fetchProjectionData(params),
     staleTime: 5 * 60 * 1000, // 5 minutos
     retry: 3,

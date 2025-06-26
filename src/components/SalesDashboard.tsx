@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import DailySalesChart from './DailySalesChart';
+import ProjectionChart from './ProjectionChart';
 import KPICards from './KPICards';
-import { TrendingUp, TrendingDown, Calendar, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, FileText, Loader2, AlertCircle, Brain, Clock, Target, Activity } from 'lucide-react';
 import { useSalesData } from '@/hooks/useSalesData';
+import { useProjectionData } from '@/hooks/useProjectionData';
 import { useSearchParams } from 'react-router-dom';
 
 const SalesDashboard = () => {
@@ -16,6 +18,22 @@ const SalesDashboard = () => {
   console.log('URL Parameters:', { company, sellerCode });
 
   const { data, isLoading, error } = useSalesData(company, sellerCode);
+  const { data: projectionData, isLoading: projectionLoading, error: projectionError } = useProjectionData({
+    company: company, 
+    seller_code: sellerCode
+  });
+
+   // Datos estáticos para ventas por días de la semana
+  const weeklyData = {
+    mondayToFriday: {
+      averageDailySales: 2850.75,
+      totalDays: 22,
+      bestDay: "Viernes",
+      bestDayAmount: 3420.80
+    },
+    saturdayGoal: 1850.00,
+    saturdayAverage: 1680.25
+  };
 
   if (isLoading) {
     return (
@@ -56,9 +74,9 @@ const SalesDashboard = () => {
   const growthRate = ((parseFloat(data.current_month.accumulated_sales) - parseFloat(data.previous_month.sales)) / parseFloat(data.previous_month.sales)) * 100;
 
   const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('es-PE', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'PEN',
+      currency: 'USD',
       minimumFractionDigits: 2
     }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
   };
@@ -94,6 +112,116 @@ const SalesDashboard = () => {
 
         {/* KPI Cards */}
         <KPICards data={data} />
+
+        {/* AI Projection and Weekly Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* AI Projection Card */}
+          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-purple-50 to-blue-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-600" />
+                Proyección IA de Ventas
+                {!projectionLoading && !projectionError && (
+                  <Badge variant="default" className="ml-auto text-xs bg-green-100 text-green-700">
+                    Activo
+                  </Badge>
+                )}
+                {projectionLoading && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    Cargando...
+                  </Badge>
+                )}
+                {projectionError && (
+                  <Badge variant="destructive" className="ml-auto text-xs">
+                    Error
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {projectionLoading ? (
+                <div className="text-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-purple-600" />
+                  <p className="text-sm text-slate-600 mt-2">Cargando proyección IA...</p>
+                </div>
+              ) : projectionError ? (
+                <div className="text-center py-4">
+                  <AlertCircle className="h-6 w-6 mx-auto text-red-500" />
+                  <p className="text-sm text-slate-600 mt-2">Error al cargar proyección</p>
+                </div>
+              ) : projectionData ? (
+                <>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-purple-700">{formatCurrency(projectionData.total_projected)}</p>
+                    <p className="text-sm text-slate-600">Proyección Total IA</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Activity className="h-4 w-4 text-green-600" />
+                        <p className="text-2xl font-bold text-green-600">{projectionData.performance_percentage.toFixed(1)}%</p>
+                      </div>
+                      <p className="text-xs text-slate-600">Rendimiento Proyectado</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectionData.goal)}</p>
+                      </div>
+                      <p className="text-xs text-slate-600">Meta Mensual</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-3 mt-4">
+                    <p className="text-sm font-medium text-slate-700 mb-1">Última Actualización:</p>
+                    <p className="text-sm text-slate-600 italic">
+                      {new Date(projectionData.projection_date).toLocaleString('es-PE')}
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          {/* Weekly Sales Analysis */}
+          <Card className="shadow-sm border-slate-200 bg-gradient-to-br from-green-50 to-emerald-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-green-600" />
+                Análisis Semanal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-600">Lunes - Viernes</span>
+                  <span className="text-lg font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.averageDailySales)}</span>
+                </div>
+                <p className="text-xs text-slate-500">Promedio diario ({weeklyData.mondayToFriday.totalDays} días)</p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-600">Meta Sábados</span>
+                  <span className="text-lg font-bold text-blue-700">{formatCurrency(weeklyData.saturdayGoal)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500">Promedio actual</span>
+                  <span className="text-sm font-medium text-slate-700">{formatCurrency(weeklyData.saturdayAverage)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-3 mt-4">
+                <p className="text-sm font-medium text-slate-700 mb-1">Mejor día:</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-green-600">{weeklyData.mondayToFriday.bestDay}</span>
+                  <span className="text-sm font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.bestDayAmount)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Performance Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -178,6 +306,21 @@ const SalesDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Projection Chart */}
+        {projectionData && (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader>
+              <CardTitle>Gráfico Comparativo: Ventas Reales vs Proyección IA</CardTitle>
+              <p className="text-sm text-slate-600">
+                Comparación de ventas reales con las proyecciones generadas por IA
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ProjectionChart data={data} projectionData={projectionData} />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Previous Month Comparison */}
         <Card className="shadow-sm border-slate-200">
           <CardHeader>
@@ -202,17 +345,6 @@ const SalesDashboard = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* URL Parameters Help */}
-        {/* <Card className="shadow-sm border-slate-200 bg-blue-50">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-800">
-              <strong>💡 URL Dinámica:</strong> Cambia los parámetros en la URL para ver otros vendedores.
-              <br />
-              Ejemplo: <code className="bg-blue-200 px-1 rounded">?company=10&seller_code=000070</code>
-            </p>
-          </CardContent>
-        </Card> */}
       </div>
     </div>
   );

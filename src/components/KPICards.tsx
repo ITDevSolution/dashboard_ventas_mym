@@ -9,9 +9,9 @@ interface KPICardsProps {
 
 const KPICards = ({ data }: KPICardsProps) => {
   const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('es-PE', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'PEN',
+      currency: 'USD',
       minimumFractionDigits: 2
     }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
   };

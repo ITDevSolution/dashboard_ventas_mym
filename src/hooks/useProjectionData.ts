@@ -15,23 +15,12 @@ interface ProjectionData {
   projection_date: string;
 }
 
-const fetchProjectionData = async (
-  params: ProjectionRequest
-): Promise<ProjectionData> => {
-  const url = new URL('https://2a0sw2gqmd.execute-api.sa-east-1.amazonaws.com/default/fnSalesAIECSLambda')
+const fetchProjectionData = async (company: string, sellerCode: string): Promise<ProjectionData> => {
+  const url = `https://2a0sw2gqmd.execute-api.sa-east-1.amazonaws.com/default/fnSalesAIECSLambda?company=${company}&seller_code=${sellerCode}`;
 
-  url.searchParams.append('company', params.company);
-  url.searchParams.append('seller_code', params.seller_code);
+  console.log('Fetching projection data from AWS API:', url);
   
-  console.log('Fetching projection data from:', url);
-  
-  const response = await fetch(url.toString(),{
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-  });
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Error fetching projection data: ${response.status}`);
@@ -43,10 +32,11 @@ const fetchProjectionData = async (
   return data;
 };
 
-export const useProjectionData = (params: ProjectionRequest) => {
+export const useProjectionData = (company: string, sellerCode: string) => {
   return useQuery({
-    queryKey: ['projectionData', params.company, params.seller_code],
-    queryFn: () => fetchProjectionData(params),
+    queryKey: ['projectionData', company, sellerCode],
+    queryFn: () => fetchProjectionData(company, sellerCode),
+    enabled: !!company && !!sellerCode,
     staleTime: 5 * 60 * 1000, // 5 minutos
     retry: 3,
   });

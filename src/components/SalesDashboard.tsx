@@ -18,10 +18,7 @@ const SalesDashboard = () => {
   console.log('URL Parameters:', { company, sellerCode });
 
   const { data, isLoading, error } = useSalesData(company, sellerCode);
-  const { data: projectionData, isLoading: projectionLoading, error: projectionError } = useProjectionData({
-    company: company, 
-    seller_code: sellerCode
-  });
+  const { data: projectionData, isLoading: projectionLoading, error: projectionError } = useProjectionData(company, sellerCode);
 
    // Datos estáticos para ventas por días de la semana
   const weeklyData = {

@@ -20,18 +20,6 @@ const SalesDashboard = () => {
   const { data, isLoading, error } = useSalesData(company, sellerCode);
   const { data: projectionData, isLoading: projectionLoading, error: projectionError } = useProjectionData(company, sellerCode);
 
-   // Datos estáticos para ventas por días de la semana
-  const weeklyData = {
-    mondayToFriday: {
-      averageDailySales: 2850.75,
-      totalDays: 22,
-      bestDay: "Viernes",
-      bestDayAmount: 3420.80
-    },
-    saturdayGoal: 1850.00,
-    saturdayAverage: 1680.25
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -65,6 +53,59 @@ const SalesDashboard = () => {
   if (!data) {
     return null;
   }
+
+    // Calcular datos semanales reales basados en la API
+  const calculateWeeklyData = () => {
+    const dailyGoals = data.current_month.daily_goals;
+    const dailySales = data.current_month.daily_sales;
+    
+    // Obtener todas las metas únicas para determinar las metas de lunes-viernes y sábados
+    const goalValues = Object.values(dailyGoals)
+      .map(goal => parseFloat(String(goal)))
+      .filter(goal => goal > 0);
+    
+    // Ordenar para obtener las dos metas diferentes
+    const uniqueGoals = [...new Set(goalValues)].sort((a, b) => b - a);
+    
+    const mondayToFridayGoal = uniqueGoals[0] || 0; // Meta más alta (lunes-viernes)
+    const saturdayGoal = uniqueGoals[1] || 0; // Meta más baja (sábados)
+    
+    // Calcular promedio de ventas de días con datos
+    const salesWithData = Object.entries(dailySales)
+      .filter(([day, sales]) => parseFloat(String(sales)) > 0)
+      .map(([day, sales]) => parseFloat(String(sales)));
+    
+    const averageDailySales = salesWithData.length > 0 ? 
+      salesWithData.reduce((sum, sale) => sum + sale, 0) / salesWithData.length : 0;
+    
+    // Encontrar el mejor día (solo si hay más de 3 ventas para que sea significativo)
+    let bestDay = "N/A";
+    let bestDayAmount = 0;
+    
+    if (salesWithData.length > 3) {
+      const bestSale = Math.max(...salesWithData);
+      const bestDayEntry = Object.entries(dailySales).find(([day, sales]) => parseFloat(String(sales)) === bestSale);
+      if (bestDayEntry) {
+        const dayNumber = parseInt(bestDayEntry[0]);
+        bestDay = `Día ${dayNumber}`;
+        bestDayAmount = bestSale;
+      }
+    }
+
+    return {
+      mondayToFriday: {
+        goal: mondayToFridayGoal,
+        averageDailySales: averageDailySales,
+        totalDays: salesWithData.length,
+        bestDay: bestDay,
+        bestDayAmount: bestDayAmount
+      },
+      saturdayGoal: saturdayGoal
+    };
+  };
+
+   // Datos estáticos para ventas por días de la semana
+  const weeklyData = calculateWeeklyData();
 
   const currentPerformance = (parseFloat(data.current_month.accumulated_sales) / parseFloat(data.current_month.goal)) * 100;
   const previousPerformance = parseFloat(data.previous_month.performance_percentage);
@@ -192,10 +233,10 @@ const SalesDashboard = () => {
             <CardContent className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-slate-600">Lunes - Viernes</span>
-                  <span className="text-lg font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.averageDailySales)}</span>
+                  <span className="text-sm text-slate-600">Meta Lunes - Viernes</span>
+                  <span className="text-lg font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.goal)}</span>
                 </div>
-                <p className="text-xs text-slate-500">Promedio diario ({weeklyData.mondayToFriday.totalDays} días)</p>
+                <p className="text-xs text-slate-500">Meta diaria días laborables</p>
               </div>
 
               <div className="pt-3 border-t border-slate-200">
@@ -203,19 +244,46 @@ const SalesDashboard = () => {
                   <span className="text-sm text-slate-600">Meta Sábados</span>
                   <span className="text-lg font-bold text-blue-700">{formatCurrency(weeklyData.saturdayGoal)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-500">Promedio actual</span>
-                  <span className="text-sm font-medium text-slate-700">{formatCurrency(weeklyData.saturdayAverage)}</span>
-                </div>
+                <p className="text-xs text-slate-500">Meta diaria sábados</p>
               </div>
 
-              <div className="bg-white rounded-lg p-3 mt-4">
-                <p className="text-sm font-medium text-slate-700 mb-1">Mejor día:</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-green-600">{weeklyData.mondayToFriday.bestDay}</span>
-                  <span className="text-sm font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.bestDayAmount)}</span>
+              {weeklyData.mondayToFriday.totalDays > 0 && (
+                <>
+                  <div className="pt-3 border-t border-slate-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-slate-600">Promedio Actual</span>
+                      <span className="text-lg font-bold text-slate-700">{formatCurrency(weeklyData.mondayToFriday.averageDailySales)}</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Basado en {weeklyData.mondayToFriday.totalDays} día(s) con ventas</p>
+                  </div>
+
+                  {weeklyData.mondayToFriday.bestDay !== "N/A" && (
+                    <div className="bg-white rounded-lg p-3 mt-4">
+                      <p className="text-sm font-medium text-slate-700 mb-1">Mejor día hasta ahora:</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-green-600">{weeklyData.mondayToFriday.bestDay}</span>
+                        <span className="text-sm font-bold text-green-700">{formatCurrency(weeklyData.mondayToFriday.bestDayAmount)}</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {weeklyData.mondayToFriday.totalDays === 0 && (
+                <div className="bg-yellow-50 rounded-lg p-3 mt-4">
+                  <p className="text-sm text-yellow-800">
+                    No hay datos de ventas suficientes para calcular promedios semanales.
+                  </p>
                 </div>
-              </div>
+              )}
+
+              {weeklyData.mondayToFriday.totalDays > 0 && weeklyData.mondayToFriday.totalDays <= 3 && (
+                <div className="bg-blue-50 rounded-lg p-3 mt-4">
+                  <p className="text-sm text-blue-800">
+                    Datos insuficientes para mostrar el mejor día (se requieren más de 3 días con ventas).
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
